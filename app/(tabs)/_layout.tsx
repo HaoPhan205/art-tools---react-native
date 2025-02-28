@@ -34,7 +34,7 @@ export default function Layout() {
           name="favourites"
           options={{
             tabBarLabel: "Yêu thích",
-            headerTitle: () => <HeaderComponent title="Sản phẩm yêu thích" />,
+            headerTitle: () => <HeaderComponent title="Danh sách yêu thích" />,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="heart-outline" size={size} color={color} />
             ),

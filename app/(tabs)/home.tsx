@@ -40,14 +40,24 @@ export default function HomeScreen() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredArtList = artList.filter((item) =>
-    item.artName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredArtList = searchQuery
+    ? artList.filter((item) =>
+        item.artName.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : artList;
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#1A73E8" />
+      </View>
+    );
+  }
+
+  if (!loading && artList.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Không có sản phẩm nào!</Text>
       </View>
     );
   }
