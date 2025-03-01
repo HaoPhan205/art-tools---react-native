@@ -11,16 +11,19 @@ interface ArtItem {
 }
 
 export default function DetailScreen() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams() as { id: string };
+
   const [artItem, setArtItem] = useState<ArtItem | null>(null);
 
   useEffect(() => {
+    if (!id) return;
     axios
       .get(`https://65f3f34a105614e654a18199.mockapi.io/art/${id}`)
       .then((response) => setArtItem(response.data))
       .catch((error) => console.error(error));
   }, [id]);
 
+  if (!id) return <Text>Lỗi: Không tìm thấy ID</Text>;
   if (!artItem) return <Text>Loading...</Text>;
 
   return (

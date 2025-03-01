@@ -14,8 +14,8 @@ import { useFocusEffect } from "@react-navigation/native";
 interface ArtItem {
   id: string;
   artName: string;
-  price: number; // Giá gốc (USD)
-  limitedTimeDeal?: number; // Giá sau khi giảm (USD)
+  price: number;
+  limitedTimeDeal?: number;
   image: string;
 }
 
@@ -35,15 +35,21 @@ export default function FavoriteList() {
     }
   };
 
-  const removeFavorite = async (id: string) => {
-    try {
-      const updatedFavorites = favorites.filter((item) => item.id !== id);
-      setFavorites(updatedFavorites);
-      await AsyncStorage.setItem("favorites", JSON.stringify(updatedFavorites));
-    } catch (error) {
-      console.error("Lỗi khi xoá khỏi danh sách yêu thích:", error);
-    }
-  };
+  const removeFavorite = useCallback(
+    async (id: string) => {
+      try {
+        const updatedFavorites = favorites.filter((item) => item.id !== id);
+        await AsyncStorage.setItem(
+          "favorites",
+          JSON.stringify(updatedFavorites)
+        );
+        setFavorites(updatedFavorites);
+      } catch (error) {
+        console.error("Lỗi khi xoá khỏi danh sách yêu thích:", error);
+      }
+    },
+    [favorites]
+  );
 
   const handleLongPress = (id: string) => {
     Alert.alert(
@@ -85,14 +91,12 @@ export default function FavoriteList() {
                 <Image source={{ uri: item.image }} style={styles.image} />
                 <View style={styles.textContainer}>
                   <Text style={styles.artName}>{item.artName}</Text>
-                  <Text style={styles.price}>
-                    {item.price ? item.price.toString() + " $" : "N/A"}
-                  </Text>
                 </View>
                 <View style={styles.priceContainer}>
                   {discountPercentage !== null && (
-                    <Text style={styles.deal}>-{discountPercentage}%</Text>
+                    <Text style={styles.deal}> -{discountPercentage}%</Text>
                   )}
+                  <Text style={styles.price}>{item.price} $</Text>
                 </View>
               </TouchableOpacity>
             );
@@ -129,7 +133,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 12,
     padding: 10,
-    alignItems: "center",
+    alignItems: "flex-start",
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
@@ -142,6 +146,7 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     flex: 1,
+    justifyContent: "flex-start",
   },
   artName: {
     fontSize: 16,
@@ -149,19 +154,28 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 5,
   },
+  priceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    position: "absolute",
+    bottom: 5,
+    right: 5,
+
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
+  },
   price: {
     fontSize: 14,
-    color: "#FF5733",
+    color: "#black",
     fontWeight: "bold",
+    marginLeft: 5,
   },
   deal: {
     fontSize: 12,
-    color: "#28A745",
-    marginTop: 4,
-  },
-  priceContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    color: "#FF5733",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
   },
 });

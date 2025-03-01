@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import ArtCard from "../../components/ArtCard";
 import { useSearch } from "~/components/SearchContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface ArtItem {
   id: string;
@@ -16,25 +17,40 @@ interface ArtItem {
   price: number;
   limitedTimeDeal?: number;
   image: string;
+  feedbacks: {
+    rating: number;
+  };
 }
 
 export default function HomeScreen() {
   const [artList, setArtList] = useState<ArtItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { searchQuery } = useSearch();
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  const loadFavorites = async () => {
+    try {
+      const storedFavorites = await AsyncStorage.getItem("favorites");
+      if (storedFavorites) {
+        const parsedFavorites = JSON.parse(storedFavorites);
+        setFavorites(parsedFavorites.map((fav: any) => fav.id));
+      } else {
+        setFavorites([]);
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách yêu thích:", error);
+    }
+  };
+
+  useEffect(() => {
+    loadFavorites();
+  }, []);
 
   useEffect(() => {
     axios
       .get("https://65f3f34a105614e654a18199.mockapi.io/art")
       .then((response) => {
-        const formattedData: ArtItem[] = response.data.map((item: any) => ({
-          id: item.id || "",
-          artName: item.artName || "Unknown Art",
-          price: item.price || 0,
-          limitedTimeDeal: item.limitedTimeDeal,
-          image: item.image || "https://via.placeholder.com/150",
-        }));
-        setArtList(formattedData);
+        setArtList(response.data);
       })
       .catch((error) => console.error(error))
       .finally(() => setLoading(false));
@@ -71,6 +87,7 @@ export default function HomeScreen() {
           item.artName && item.image ? (
             <ArtCard
               item={item}
+              loadFavorites={loadFavorites}
               isLast={
                 index === filteredArtList.length - 1 &&
                 filteredArtList.length % 2 !== 0
@@ -91,7 +108,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
-    paddingHorizontal: 10,
+    paddingHorizontal: 30,
   },
   title: {
     fontSize: 20,

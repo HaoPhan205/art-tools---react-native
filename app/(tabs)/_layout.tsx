@@ -9,39 +9,44 @@ import {
 } from "react-native";
 import { useState } from "react";
 import { SearchProvider, useSearch } from "~/components/SearchContext";
+import { FavoritesProvider } from "~/context/FavoritesContext";
 
 export default function Layout() {
   return (
-    <SearchProvider>
-      <Tabs
-        screenOptions={{
-          headerStyle: { backgroundColor: "#f8f8f8", height: 150 },
-          headerTitleAlign: "center",
-          headerTitleContainerStyle: { width: "100%" },
-        }}
-      >
-        <Tabs.Screen
-          name="home"
-          options={{
-            tabBarLabel: "Trang chủ",
-            headerTitle: () => <HeaderComponent title="Trang chủ" />,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="home-outline" size={size} color={color} />
-            ),
+    <FavoritesProvider>
+      <SearchProvider>
+        <Tabs
+          screenOptions={{
+            headerStyle: { backgroundColor: "#f8f8f8", height: 150 },
+            headerTitleAlign: "center",
+            headerTitleContainerStyle: { width: "100%" },
           }}
-        />
-        <Tabs.Screen
-          name="favourites"
-          options={{
-            tabBarLabel: "Yêu thích",
-            headerTitle: () => <HeaderComponent title="Danh sách yêu thích" />,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="heart-outline" size={size} color={color} />
-            ),
-          }}
-        />
-      </Tabs>
-    </SearchProvider>
+        >
+          <Tabs.Screen
+            name="home"
+            options={{
+              tabBarLabel: "Trang chủ",
+              headerTitle: () => <HeaderComponent title="Trang chủ" />,
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="home-outline" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="favourites"
+            options={{
+              tabBarLabel: "Yêu thích",
+              headerTitle: () => (
+                <HeaderComponent title="Danh sách yêu thích" />
+              ),
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="heart-outline" size={size} color={color} />
+              ),
+            }}
+          />
+        </Tabs>
+      </SearchProvider>
+    </FavoritesProvider>
   );
 }
 
