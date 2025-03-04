@@ -1,12 +1,5 @@
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  ActivityIndicator,
-  TouchableOpacity,
-} from "react-native";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Animated, {
   useSharedValue,
@@ -14,7 +7,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { useNavigation } from "expo-router";
 import { AntDesign, FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
 
@@ -32,12 +24,16 @@ interface ArtCardProps {
   isLast?: boolean;
   hideFavoriteIcon?: boolean;
   loadFavorites?: () => Promise<void>;
+  onFavoriteChange?: () => void;
+  favorites: string[];
 }
 
 export default function ArtCard({
   item,
   hideFavoriteIcon,
   loadFavorites,
+  onFavoriteChange,
+  favorites,
 }: ArtCardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -49,18 +45,10 @@ export default function ArtCard({
   useEffect(() => {
     opacity.value = withTiming(1, { duration: 500 });
     translateY.value = withTiming(0, { duration: 500 });
-    checkFavorite();
-  }, []);
+    setIsFavorite(favorites.includes(item.id));
+  }, [favorites, item.id]);
 
-  const checkFavorite = async () => {
-    const favorites = await AsyncStorage.getItem("favorites");
-    if (favorites) {
-      const parsedFavorites: ArtItem[] = JSON.parse(favorites);
-      setIsFavorite(parsedFavorites.some((fav) => fav.id === item.id));
-    }
-  };
-
-  const toggleFavorite = async () => {
+  const toggleFavorite = useCallback(async () => {
     try {
       let favorites = await AsyncStorage.getItem("favorites");
       let updatedFavorites: ArtItem[] = favorites ? JSON.parse(favorites) : [];
@@ -74,13 +62,13 @@ export default function ArtCard({
       await AsyncStorage.setItem("favorites", JSON.stringify(updatedFavorites));
       setIsFavorite(!isFavorite);
 
-      if (loadFavorites) {
-        await loadFavorites();
+      if (onFavoriteChange) {
+        onFavoriteChange();
       }
     } catch (error) {
       console.error("Lỗi khi lưu yêu thích:", error);
     }
-  };
+  }, [item.id, isFavorite, item, onFavoriteChange]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -95,11 +83,13 @@ export default function ArtCard({
     ? item.price * (1 - item.limitedTimeDeal)
     : item.price;
 
-  const validRatings = item.feedbacks
-    ?.map((fb) => Number(fb.rating))
-    .filter((r) => !isNaN(r));
+  const validRatings =
+    item.feedbacks && Array.isArray(item.feedbacks) && item.feedbacks.length > 0
+      ? item.feedbacks.map((fb) => Number(fb.rating)).filter((r) => !isNaN(r))
+      : [];
+
   const averageRating =
-    validRatings && validRatings.length > 0
+    validRatings.length > 0
       ? (
           validRatings.reduce((sum, rating) => sum + rating, 0) /
           validRatings.length
@@ -122,22 +112,19 @@ export default function ArtCard({
           rotate.value = withSpring(0);
         }}
       >
-        {isLoading && (
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator size="large" color="#1A73E8" />
-          </View>
-        )}
-
         <Image
           source={{ uri: item.image }}
           style={[styles.image, isLoading && { opacity: 0 }]}
           onLoad={() => setIsLoading(false)}
           resizeMode="cover"
         />
-        <View style={styles.ratingContainer}>
-          <FontAwesome name="star" size={16} color="gold" />
-          <Text style={styles.ratingText}>{averageRating}</Text>
-        </View>
+
+        {validRatings.length > 0 ? (
+          <View style={styles.ratingContainer}>
+            <FontAwesome name="star" size={16} color="gold" />
+            <Text style={styles.ratingText}>{averageRating}</Text>
+          </View>
+        ) : null}
 
         {!hideFavoriteIcon && (
           <TouchableOpacity
@@ -156,12 +143,26 @@ export default function ArtCard({
           <Text style={styles.name} numberOfLines={2} ellipsizeMode="tail">
             {item.artName}
           </Text>
-          <Text style={styles.price}>${item.price.toFixed(2)}</Text>
-          {item.limitedTimeDeal && (
-            <Text style={styles.discountedPrice}>
-              Giảm còn: ${discountedPrice.toFixed(2)}
-            </Text>
-          )}
+          <View style={styles.priceContainer}>
+            {item.limitedTimeDeal ? (
+              <>
+                <Text style={styles.originalPrice}>
+                  ${item.price.toFixed(2)}
+                </Text>
+                <Text style={styles.discountPercent}>
+                  -{(item.limitedTimeDeal * 100).toFixed(0)}%
+                </Text>
+                <Text style={styles.discountedPrice}>
+                  ${discountedPrice.toFixed(2)}
+                </Text>
+                <Text style={styles.savingsText}>
+                  Tiết kiệm: ${(item.price - discountedPrice).toFixed(2)}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.realPrice}>${item.price.toFixed(2)}</Text>
+            )}
+          </View>
         </View>
       </Animated.View>
     </TouchableOpacity>
@@ -174,9 +175,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 5,
     marginVertical: 5,
-    marginHorizontal: 5,
     shadowOpacity: 0.05,
-    width: 180,
+    width: 200,
     shadowRadius: 3,
     elevation: 5,
     alignItems: "center",
@@ -190,16 +190,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     resizeMode: "cover",
   },
-
-  loaderContainer: {
-    width: "100%",
-    height: 140,
-    justifyContent: "center",
-    alignItems: "center",
-    position: "absolute",
-    backgroundColor: "#f5f5f5",
-    zIndex: 5,
-  },
   textContainer: {
     width: "100%",
     alignItems: "flex-start",
@@ -212,31 +202,18 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 4,
     lineHeight: 22,
-    marginRight: 10,
-    marginLeft: 10,
+    marginRight: 5,
+    marginLeft: 5,
   },
-  price: {
-    fontSize: 16,
+  discountPercent: {
+    fontSize: 14,
     fontWeight: "bold",
-    color: "black",
-    marginTop: 10,
-  },
-  discountBadge: {
-    backgroundColor: "red",
-    paddingVertical: 3,
-    paddingHorizontal: 6,
-    borderRadius: 5,
-    zIndex: 10,
-  },
-  discountText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
+    color: "red",
   },
   favoriteButton: {
     position: "absolute",
-    bottom: 8,
-    right: 8,
+    bottom: 5,
+    right: 5,
     backgroundColor: "rgba(255, 255, 255, 0.8)",
     padding: 5,
     borderRadius: 15,
@@ -259,9 +236,35 @@ const styles = StyleSheet.create({
     color: "black",
   },
   discountedPrice: {
-    fontSize: 14,
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 5,
+    width: "100%",
+  },
+  savingsText: {
+    fontSize: 13,
     fontWeight: "bold",
     color: "green",
+    marginTop: 2,
+    marginBottom: 5,
+  },
+  realPrice: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "black",
+    marginBottom: 10,
+  },
+  originalPrice: {
+    fontSize: 14,
+    textDecorationLine: "line-through",
+    color: "gray",
+  },
+  priceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
     marginTop: 5,
+    marginRight: 5,
+    marginLeft: 5,
   },
 });

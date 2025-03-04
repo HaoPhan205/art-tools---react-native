@@ -1,3 +1,5 @@
+import React from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -9,11 +11,10 @@ import {
 } from "react-native";
 import { useState } from "react";
 import { SearchProvider, useSearch } from "~/components/SearchContext";
-import { FavoritesProvider } from "~/context/FavoritesContext";
 
 export default function Layout() {
   return (
-    <FavoritesProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <SearchProvider>
         <Tabs
           screenOptions={{
@@ -46,7 +47,7 @@ export default function Layout() {
           />
         </Tabs>
       </SearchProvider>
-    </FavoritesProvider>
+    </GestureHandlerRootView>
   );
 }
 
