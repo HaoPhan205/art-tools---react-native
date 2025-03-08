@@ -10,6 +10,9 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import Swipeable from "react-native-gesture-handler/Swipeable";
+import { useRouter } from "expo-router";
+
+import { useSearch } from "~/components/SearchContext";
 
 interface ArtItem {
   id: string;
@@ -22,6 +25,9 @@ interface ArtItem {
 export default function FavoriteList() {
   const [favorites, setFavorites] = useState<ArtItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+  const router = useRouter();
+  const { searchQuery, setSearchQuery } = useSearch();
 
   const loadFavorites = useCallback(async () => {
     try {
@@ -52,16 +58,27 @@ export default function FavoriteList() {
     [favorites]
   );
 
-  const handleLongPress = useCallback((id: string) => {
-    setSelectedItems((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
+  const handlePress = useCallback(
+    (id: string) => {
+      if (selectionMode) {
+        setSelectedItems((prev) => {
+          const newSet = new Set(prev);
+          if (newSet.has(id)) {
+            newSet.delete(id);
+          } else {
+            newSet.add(id);
+          }
+          return newSet;
+        });
       } else {
-        newSet.add(id);
+        router.push(`/detail/${id}`);
       }
-      return newSet;
-    });
+    },
+    [selectionMode, router]
+  );
+
+  const handleLongPress = useCallback(() => {
+    setSelectionMode(true);
   }, []);
 
   const handleDeleteSelected = useCallback(async () => {
@@ -72,6 +89,7 @@ export default function FavoriteList() {
       await AsyncStorage.setItem("favorites", JSON.stringify(updatedFavorites));
       setFavorites(updatedFavorites);
       setSelectedItems(new Set());
+      setSelectionMode(false);
     } catch (error) {
       console.error("Lỗi khi xoá khỏi danh sách yêu thích:", error);
     }
@@ -82,9 +100,15 @@ export default function FavoriteList() {
       await AsyncStorage.removeItem("favorites");
       setFavorites([]);
       setSelectedItems(new Set());
+      setSelectionMode(false);
     } catch (error) {
       console.error("Lỗi khi xoá tất cả khỏi danh sách yêu thích:", error);
     }
+  }, []);
+
+  const handleCancelSelection = useCallback(() => {
+    setSelectedItems(new Set());
+    setSelectionMode(false);
   }, []);
 
   useFocusEffect(
@@ -102,9 +126,17 @@ export default function FavoriteList() {
     </TouchableOpacity>
   );
 
+  const formatPrice = (price: number) => {
+    return price % 1 === 0 ? price.toFixed(0) : price.toFixed(2);
+  };
+
+  const filteredFavorites = favorites.filter((item) =>
+    item.artName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <View style={styles.container}>
-      {selectedItems.size > 0 && (
+      {selectionMode && (
         <View style={styles.actionBar}>
           <TouchableOpacity onPress={handleDeleteSelected}>
             <Text style={styles.actionText}>Xóa đã chọn</Text>
@@ -112,36 +144,67 @@ export default function FavoriteList() {
           <TouchableOpacity onPress={handleDeleteAll}>
             <Text style={styles.actionText}>Xóa tất cả</Text>
           </TouchableOpacity>
+          <TouchableOpacity onPress={handleCancelSelection}>
+            <Text style={styles.actionText}>Hủy</Text>
+          </TouchableOpacity>
         </View>
       )}
-      {favorites.length > 0 ? (
+      {filteredFavorites.length > 0 ? (
         <FlatList
           contentContainerStyle={styles.listContainer}
-          data={favorites}
+          data={filteredFavorites}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <Swipeable
-              renderRightActions={() => renderRightActions(item.id)}
-              friction={2}
-              overshootRight={false}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.listItem,
-                  selectedItems.has(item.id) && styles.selectedItem,
-                ]}
-                onLongPress={() => handleLongPress(item.id)}
+          renderItem={({ item }) => {
+            const discountedPrice = item.limitedTimeDeal
+              ? item.price * (1 - item.limitedTimeDeal)
+              : item.price;
+            const discountPercent = item.limitedTimeDeal
+              ? (item.limitedTimeDeal * 100).toFixed(0)
+              : null;
+
+            return (
+              <Swipeable
+                renderRightActions={() => renderRightActions(item.id)}
+                friction={2}
+                overshootRight={false}
               >
-                <Image source={{ uri: item.image }} style={styles.image} />
-                <View style={styles.textContainer}>
-                  <Text style={styles.artName}>{item.artName}</Text>
-                </View>
-                <View style={styles.priceContainer}>
-                  <Text style={styles.price}>{item.price} $</Text>
-                </View>
-              </TouchableOpacity>
-            </Swipeable>
-          )}
+                <TouchableOpacity
+                  style={[
+                    styles.listItem,
+                    selectedItems.has(item.id) && styles.selectedItem,
+                  ]}
+                  onPress={() => handlePress(item.id)}
+                  onLongPress={handleLongPress}
+                >
+                  <Image source={{ uri: item.image }} style={styles.image} />
+                  <View style={styles.textContainer}>
+                    <Text style={styles.artName}>{item.artName}</Text>
+                    <View style={styles.priceContainer}>
+                      {item.limitedTimeDeal ? (
+                        <>
+                          <Text>
+                            <Text style={styles.originalPrice}>
+                              ${formatPrice(item.price)}
+                            </Text>
+                            <Text style={styles.discountPercent}>
+                              -{discountPercent}%
+                            </Text>
+                          </Text>
+                          <Text style={styles.discountedPrice}>
+                            ${formatPrice(discountedPrice)}
+                          </Text>
+                        </>
+                      ) : (
+                        <Text style={styles.realPrice}>
+                          ${formatPrice(item.price)}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </Swipeable>
+            );
+          }}
         />
       ) : (
         <Text style={styles.emptyText}>
@@ -170,15 +233,19 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   listItem: {
+    overflow: "hidden",
+    borderColor: "#6ec2f7",
+    borderWidth: 1,
     flexDirection: "row",
     backgroundColor: "#fff",
     borderRadius: 8,
     marginBottom: 12,
-    alignItems: "flex-start",
+    alignItems: "center",
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-    height: 100,
+    height: 120,
+    padding: 10,
   },
   selectedItem: {
     backgroundColor: "#e0e0e0",
@@ -190,7 +257,8 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     flex: 1,
-    justifyContent: "flex-start",
+    justifyContent: "space-between",
+    height: "100%",
   },
   artName: {
     fontSize: 16,
@@ -199,27 +267,39 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   priceContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    position: "absolute",
-    bottom: 5,
-    right: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 5,
+    flexDirection: "column",
+    alignItems: "flex-end",
+    justifyContent: "flex-end",
+    flex: 1,
   },
-  price: {
-    fontSize: 14,
+  discountedPrice: {
+    fontSize: 18,
     color: "black",
     fontWeight: "bold",
+  },
+  originalPrice: {
+    fontSize: 12,
+    textDecorationLine: "line-through",
+    color: "gray",
     marginLeft: 5,
+  },
+  discountPercent: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "red",
+    marginLeft: 5,
+  },
+  realPrice: {
+    fontSize: 18,
+    color: "black",
+    fontWeight: "bold",
   },
   deleteButton: {
     backgroundColor: "red",
     justifyContent: "center",
     alignItems: "center",
     width: 80,
-    height: 100,
+    height: "100%",
     zIndex: 0,
   },
   deleteButtonText: {

@@ -11,6 +11,7 @@ import ArtCard from "../../components/ArtCard";
 import { useSearch } from "~/components/SearchContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import { useBrand } from "~/components/BrandContext";
 
 interface ArtItem {
   id: string;
@@ -19,6 +20,7 @@ interface ArtItem {
   limitedTimeDeal?: number;
   image: string;
   feedbacks: { rating: number }[];
+  brand: string;
 }
 
 export default function HomeScreen() {
@@ -26,6 +28,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const { searchQuery } = useSearch();
   const [favorites, setFavorites] = useState<string[]>([]);
+  const { brands, setBrands, selectedBrand } = useBrand();
 
   const loadFavorites = useCallback(async () => {
     try {
@@ -52,16 +55,22 @@ export default function HomeScreen() {
       .get("https://65f3f34a105614e654a18199.mockapi.io/art")
       .then((response) => {
         setArtList(response.data);
+        const uniqueBrands = Array.from(
+          new Set(response.data.map((item: ArtItem) => item.brand))
+        );
+        setBrands(uniqueBrands as string[]);
       })
       .catch((error) => console.error(error))
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredArtList = searchQuery
-    ? artList.filter((item) =>
-        item.artName.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : artList;
+  const filteredArtList = artList.filter((item) => {
+    const matchesSearch = searchQuery
+      ? item.artName.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
+    const matchesBrand = selectedBrand ? item.brand === selectedBrand : true;
+    return matchesSearch && matchesBrand;
+  });
 
   if (loading) {
     return (
@@ -110,7 +119,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#EEEEEE",
     paddingHorizontal: 10,
   },
   title: {

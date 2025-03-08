@@ -9,6 +9,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { AntDesign, FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
+import Toast from "react-native-toast-message";
 
 interface ArtItem {
   id: string;
@@ -55,8 +56,22 @@ export default function ArtCard({
 
       if (isFavorite) {
         updatedFavorites = updatedFavorites.filter((fav) => fav.id !== item.id);
+        Toast.show({
+          type: "success",
+          text1: "Đã xoá khỏi mục yêu thích",
+          text2: `${item.artName} đã được xoá khỏi mục yêu thích.`,
+          position: "top",
+          topOffset: 150,
+        });
       } else {
         updatedFavorites.push(item);
+        Toast.show({
+          type: "success",
+          text1: "Đã thêm vào mục yêu thích",
+          text2: `${item.artName} đã được thêm vào mục yêu thích.`,
+          position: "top",
+          topOffset: 150,
+        });
       }
 
       await AsyncStorage.setItem("favorites", JSON.stringify(updatedFavorites));
@@ -78,6 +93,10 @@ export default function ArtCard({
     ],
     opacity: opacity.value,
   }));
+
+  const formatPrice = (price: number) => {
+    return price % 1 === 0 ? price.toFixed(0) : price.toFixed(2);
+  };
 
   const discountedPrice = item.limitedTimeDeal
     ? item.price * (1 - item.limitedTimeDeal)
@@ -147,20 +166,20 @@ export default function ArtCard({
             {item.limitedTimeDeal ? (
               <>
                 <Text style={styles.originalPrice}>
-                  ${item.price.toFixed(2)}
+                  ${formatPrice(item.price)}
                 </Text>
                 <Text style={styles.discountPercent}>
                   -{(item.limitedTimeDeal * 100).toFixed(0)}%
                 </Text>
                 <Text style={styles.discountedPrice}>
-                  ${discountedPrice.toFixed(2)}
+                  ${formatPrice(discountedPrice)}
                 </Text>
                 <Text style={styles.savingsText}>
-                  Tiết kiệm: ${(item.price - discountedPrice).toFixed(2)}
+                  Tiết kiệm: ${formatPrice(item.price - discountedPrice)}
                 </Text>
               </>
             ) : (
-              <Text style={styles.realPrice}>${item.price.toFixed(2)}</Text>
+              <Text style={styles.realPrice}>${formatPrice(item.price)}</Text>
             )}
           </View>
         </View>
@@ -183,6 +202,8 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
     alignSelf: "center",
+    borderColor: "#6ec2f7",
+    borderWidth: 1,
   },
   image: {
     width: "100%",
@@ -193,7 +214,7 @@ const styles = StyleSheet.create({
   textContainer: {
     width: "100%",
     alignItems: "flex-start",
-    paddingHorizontal: 5,
+    padding: 8,
     position: "relative",
   },
   name: {
